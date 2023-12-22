@@ -1,4 +1,4 @@
-
+//#define DEBUG  // if defined, all values displayed when read
 
 
 #include "ZLFP10Thermostat.h"
@@ -44,9 +44,11 @@ void ZLFP10Thermostat::ReadSettings() {
     int x;
     for (x = 0; x < holdingCount; x++) {
         holdingData[x] = ModbusRTUClient.read();
-        /*   Serial.print(HoldingLabels[x]);
-        Serial.print(" = ");
-        Serial.println(holdingData[x]);*/
+        #ifdef DEBUG
+            Serial.print(HoldingLabels[x]);
+            Serial.print(" = ");
+            Serial.println(holdingData[x]);
+        #endif
 
     }
     delay(150);  // need a little bit of time between requests
@@ -55,9 +57,11 @@ void ZLFP10Thermostat::ReadSettings() {
 
     for (x = 0; x < inputCount; x++) {
         inputData[x] = ModbusRTUClient.read();
-        /*Serial.print(InputLabels[x]);
-     Serial.print(" = ");
-     Serial.println(inputData[x]);*/
+        #ifdef DEBUG
+        Serial.print(InputLabels[x]);
+        Serial.print(" = ");
+        Serial.println(inputData[x]);
+        #endif
     }
 
     actualOnoff = holdingData[0];
@@ -91,7 +95,7 @@ void ZLFP10Thermostat::ReadTemp() {
 // If the fan is on its lowest setting, and the temperture is above the setpoint, stop the fan. Do this by switching the unit out of heating mode
 // and into auto mode. The setpoint for auto needs to be set below that for heating.
 
-// You don't want the fan speed changing around a lot, that's annoying. So the variable lastadjustment is used to limit adjustments to one
+// You don't want the fan speed changing around a lot, that's annoying. So the variable nextAdjustmentTime is used to limit adjustments to one
 // every three minutes -- four if you're coming out of being off because it takes about a minute for the unit to come on
 
 // The temperature sensor tends to bounce around between two degrees. This function gets called whenever the temperature changes, you only want to 
@@ -105,8 +109,8 @@ void ZLFP10Thermostat::ReadTemp() {
 bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
 
   // when it's time to adjust the unit, these are the three things we'll send
-  short mode = 4;  // heating
-    //mode=3; // vent
+  short mode = MODE_HEAT;  // heating
+    
     short onoff=1;
     short setfanspeed;
 
@@ -149,7 +153,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
     }
     else
     {
-        if (millis() - lastAdjustment > 240000) // don't adust fan more than once every three minutes
+        if (millis()  > nextAdjustmentTime) // don't adust fan more than once every three minutes
         {
           // this is meant to compare temp >=upperthreshold . However since they are floating points the exact equals doesn't always hit
             if (upperthreshold - temp < 0.09) { 
@@ -159,7 +163,12 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
                 fanspeed--;
                 // move the threshold up by a unit so we don't trigger again
                 upperthreshold += 0.1;
-                lastAdjustment = millis();
+                nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
+                // if we're turning fan off, allow another 60 seconds to turn it back on again
+                if(fanspeed <=MINFANSPEED)
+                {
+                  nextAdjustmentTime+=60000;
+                }
             }
             if (temp - lowerthreshold < 0.09)
             {
@@ -167,7 +176,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
                 fanspeed++;
                 // move the threshold down a unit
                 lowerthreshold -= 0.1;
-                lastAdjustment = millis();
+                nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
             }
         }
     }
@@ -182,7 +191,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
     if (fanspeed == MINFANSPEED) {
 
         // turn unit off by changing mode from heating to auto
-        mode = 0; // auto
+        mode = MODE_AUTO; 
         
 
     }
@@ -316,13 +325,13 @@ void ZLFP10Thermostat::loop() {
     if (!isnan(temp))
     {
         unsigned long now = millis();
-        if (oldtemp != temp || now - lastcheck > 60000 || lastcheck == 0)
+        if (oldtemp != temp || now > nextcheck  || nextcheck == 0)
         {
             ReadSettings();
 
             if (UpdateFanSpeed(oldtemp))
             {
-                lastcheck = now;
+                nextcheck = now +60000; // don't check for 60 seconds unless the temperature chnages
             }
             else
             {
@@ -439,7 +448,7 @@ if(fanspeed > 5)
  while (1);
 }*/
 
-/*
+#ifdef DEBUG
 const char * HoldingLabels[]={"On/Off",
 "Mode",
 "Fanspeed",
@@ -473,7 +482,8 @@ char * InputLabels[]={"Room temperature",
 "Room temperature sensor fault",
 "Coil temperature sensor fault"
 };
-
+#endif
+/*
 void SetAutoTemps()
 {
   int retval;

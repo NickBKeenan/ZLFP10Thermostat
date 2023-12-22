@@ -8,7 +8,10 @@
 #define MAXFANSPEED 4
 #define MINFANSPEED 1  // 2 is actually the lowest settable speed, 1=off
 #define THERMOSTAT_INTERVAL 2  // how many tenths of a degree above and below the setpoint to allow
+#define ADJUSTMENT_INTERVAL 180000 // don't adust more than once every 3 minutes
 #define UNIT_ADDRESS 15 // the MODBUS address of the FCU. This can be changed through the control panel if needed.
+#define MODE_AUTO 0
+#define MODE_HEAT 4
 
 
 class ZLFP10Thermostat
@@ -30,8 +33,8 @@ class ZLFP10Thermostat
     short valveOpen;  // what the unit reports for zone valve setting.Not used, just for curiosity 
     float upperthreshold = 0;  // if we hit this temperature, slow the fan down
     float lowerthreshold = 0; // if we hit this temperature, speed the fan up
-    unsigned long lastAdjustment = 0; //don't adjust the fan speed more than once every three minutes
-    unsigned long lastcheck = 0;   // track the last time we read settings and status from the unit, do it every minute
+    unsigned long nextAdjustmentTime = 0; //don't adjust the fan speed more than once every three minutes
+    unsigned long nextcheck = 0;   // track the last time we read settings and status from the unit, do it every minute
 public:
     ZLFP10Thermostat(int pDHTSensorPin);
     void setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, int pDHTSensorPin);
@@ -44,3 +47,5 @@ public:
 };
 
 extern ZLFP10Thermostat theThermostat;
+extern const char * HoldingLabels[];
+extern  char * InputLabels[];
