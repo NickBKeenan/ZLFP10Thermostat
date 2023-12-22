@@ -40,7 +40,7 @@ void ZLFP10Thermostat::ReadSettings() {
 
     short holdingData[holdingCount];
     short inputData[inputCount];
-    ModbusRTUClient.requestFrom(address, HOLDING_REGISTERS, holdingFirst, holdingCount);
+    ModbusRTUClient.requestFrom(UNIT_ADDRESS, HOLDING_REGISTERS, holdingFirst, holdingCount);
     int x;
     for (x = 0; x < holdingCount; x++) {
         holdingData[x] = ModbusRTUClient.read();
@@ -51,7 +51,7 @@ void ZLFP10Thermostat::ReadSettings() {
     }
     delay(150);  // need a little bit of time between requests
 
-    ModbusRTUClient.requestFrom(address, INPUT_REGISTERS, inputFirst, inputCount);
+    ModbusRTUClient.requestFrom(UNIT_ADDRESS, INPUT_REGISTERS, inputFirst, inputCount);
 
     for (x = 0; x < inputCount; x++) {
         inputData[x] = ModbusRTUClient.read();
@@ -82,9 +82,35 @@ void ZLFP10Thermostat::ReadTemp() {
 
 
 //////////////////////////////////////////////////////////////////////////////
+
+// This is the heart of the program.
+
+// Essentially, you check the current temperature, if it's above the setpoint you slow the fan down, if it's below you speed the fan up
+// But there are lots of twists
+
+// If the fan is on its lowest setting, and the temperture is above the setpoint, stop the fan. Do this by switching the unit out of heating mode
+// and into auto mode. The setpoint for auto needs to be set below that for heating.
+
+// You don't want the fan speed changing around a lot, that's annoying. So the variable lastadjustment is used to limit adjustments to one
+// every three minutes -- four if you're coming out of being off because it takes about a minute for the unit to come on
+
+// The temperature sensor tends to bounce around between two degrees. This function gets called whenever the temperature changes, you only want to 
+// change the fan speed once for each setpoint. The variables upperthreshold and lowerthreshold hold the current points at which the fan speed changes. 
+// Once a threshold has been hit, it gets moved 0.1 away from the setpoint, so the temperature has to move a whole unit to move it again. If the
+// temperture moves two units toward the setpoint then the threshold gets reset to its original value.
+
+// On startup, if the temperature is below the setpoint the fan is put on highest speed until the setpoint is reached for the first time.
+// This is tracked in the variable startingmode.
+
 bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
 
+  // when it's time to adjust the unit, these are the three things we'll send
+  short mode = 4;  // heating
+    //mode=3; // vent
+    short onoff=1;
+    short setfanspeed;
 
+    // does the threshold need to be adjusted? Have we move two units closer to the setpoint?
     if (upperthreshold > temp + 0.2)
     {
         upperthreshold = temp + 0.2;
@@ -104,11 +130,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
     }
 
 
-    short mode = 4;  // heating
-    //mode=3; // vent
-    short onoff;
-    short setfanspeed;
-
+  
     // if oldtemp is zero, we're being called for the first time
     if (oldtemp == 0)
     {
@@ -118,7 +140,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
 
         if (temp >= upperthreshold) {
 
-            fanspeed = 0;
+            fanspeed = MINFANSPEED;
         }
         if (temp < lowerthreshold) {
 
@@ -129,11 +151,13 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
     {
         if (millis() - lastAdjustment > 240000) // don't adust fan more than once every three minutes
         {
-            if (upperthreshold - temp < 0.09) {
+          // this is meant to compare temp >=upperthreshold . However since they are floating points the exact equals doesn't always hit
+            if (upperthreshold - temp < 0.09) { 
 
                 // only adjust speed down on rising temp
 
                 fanspeed--;
+                // move the threshold up by a unit so we don't trigger again
                 upperthreshold += 0.1;
                 lastAdjustment = millis();
             }
@@ -141,33 +165,27 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
             {
                 // only adjust speed up on falling temperature
                 fanspeed++;
+                // move the threshold down a unit
                 lowerthreshold -= 0.1;
                 lastAdjustment = millis();
             }
         }
     }
 
-    if (fanspeed < 1) {
-        fanspeed = 1;
+    if (fanspeed < MINFANSPEED) {
+        fanspeed = MINFANSPEED;
     }
     if (fanspeed > MAXFANSPEED) {
         fanspeed = MAXFANSPEED;
     }
 
-    if (fanspeed == 1) {
+    if (fanspeed == MINFANSPEED) {
 
-        //onoff = 0;
+        // turn unit off by changing mode from heating to auto
         mode = 0; // auto
-        onoff = 1;
+        
 
     }
-    else {
-        // turn on, set fan speed
-        onoff = 1;
-
-
-    }
-
     // on startup, if we're outside the band we go to highest setting. When we reach the band, throttle back to 2
     if (startingmode)
     {
@@ -184,6 +202,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
     {
         if (actualFanspeed == fanspeed)
         {
+          // nothing has changed, we're done
             return true;
         }
         if (fanspeed == 1)
@@ -191,11 +210,13 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
             return true;
         }
     }
+
+    // OK, if we get here we're changing the settings
     Serial.println();
 
     setfanspeed = fanspeed;
     int retval;
-    retval = ModbusRTUClient.beginTransmission(address, HOLDING_REGISTERS, 0x6E8d, sizeof(setfanspeed) * 3);
+    retval = ModbusRTUClient.beginTransmission(UNIT_ADDRESS, HOLDING_REGISTERS, 0x6E8d, sizeof(setfanspeed) * 3);
     if (!retval) {
         Serial.println("Error in beginTransmission");
         return false;
@@ -222,8 +243,9 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) {
         Serial.println();
         return false;
     }
-    ReadSettings();
-    return true;
+    delay(100);
+    ReadSettings(); // read back the settings for display
+    return true; // success!
 }
 
 
