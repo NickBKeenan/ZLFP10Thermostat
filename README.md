@@ -28,3 +28,8 @@ It does this by spoofing the temperature sensor on the unit. In automatic fan mo
 There are two wires going to the temperature sensor on the unit. One is connected to ground. The other one is cut and connected to a PWM pin (pin 9 by default) with the capacitor between the pin and ground.
 
 On the ZLFP10 controller board there is a 5V pin that is used to power the Arduino. You also need attachments to the Modbus pins, and the ground that is next to them.
+
+
+Still to do: 
+* Support for cooling mode
+* Add detection of change of setpoint or heating/cooling mode
