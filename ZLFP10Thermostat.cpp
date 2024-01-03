@@ -1,19 +1,18 @@
-//#define DEBUG  // if defined, all values displayed when read
+
 
 
 #include "ZLFP10Thermostat.h"
 
-// Define pin modes for TX and RX
 
 
 ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):sensor(pDHTSensorPin, DHT22,6)
 {
 
 }
-// Set the baud rate for the SoftwareSerial object
 
-void ZLFP10Thermostat::setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin) {
-  //sensor(pDHTSensorPin, DHT22, 6)
+void ZLFP10Thermostat::setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin) 
+{
+
 
 
     sensor.begin();
@@ -55,11 +54,6 @@ void ZLFP10Thermostat::ReadSettings() {
     int x;
     for (x = 0; x < holdingCount; x++) {
         holdingData[x] = ModbusRTUClient.read();
-        #ifdef DEBUG
-            Serial.print(HoldingLabels[x]);
-            Serial.print(" = ");
-            Serial.println(holdingData[x]);
-        #endif
 
     }
     delay(150);  // need a little bit of time between requests
@@ -73,11 +67,6 @@ void ZLFP10Thermostat::ReadSettings() {
 
     for (x = 0; x < inputCount; x++) {
         inputData[x] = ModbusRTUClient.read();
-        #ifdef DEBUG
-        Serial.print(InputLabels[x]);
-        Serial.print(" = ");
-        Serial.println(inputData[x]);
-        #endif
     }
 
     actualOnoff = holdingData[0];
@@ -107,7 +96,7 @@ void ZLFP10Thermostat::SetFanSpeed(short newFanSpeed)
 
   int newspeed=0;
   newspeed=SetLevels[newFanSpeed];
-  /*
+  /* version 2
   Serial.println();
   Serial.print("Setting fan speed=");
   Serial.print(newFanSpeed);
@@ -117,7 +106,7 @@ void ZLFP10Thermostat::SetFanSpeed(short newFanSpeed)
   // if fanspeed is Min or max, bump it to be sure
 
   // that's the calculated fan speed. But if we get called again, and the newFanSpeed is the same as last time we were called, it's
-  // because the reported fan speed has met what we requested. In that case, bump the setting in the direction that we're off
+  // because the reported fan speed hasn't met what we requested. In that case, bump the setting in the direction that we're off
   newspeed= 165-settemp/10+newFanSpeed;
   if(newFanSpeed==MINFANSPEED)
   {
@@ -139,61 +128,6 @@ void ZLFP10Thermostat::SetFanSpeed(short newFanSpeed)
   lastFanSpeedOutput=newspeed; 
   */ 
   //end of version 2
-  /*
-  switch (newFanSpeed)
-  {
-    // with 9v input, 132=20C
-    // with USB input, 138=20C
-    // with onboard 5v, 145= 20c
-    /*case 0:// USB
-    newspeed=133;
-    break;
-    case 1:
-    newspeed=134;
-    break;
-    case 2:
-    newspeed=135;
-    break;
-    case 3:
-    newspeed=136;
-    break;
-    case 4:
-    newspeed=138;
-    break;*/
-/*9Vin
-    case 0:
-    newspeed=129;
-    break;
-    case 1:
-    newspeed=131;
-    break;
-    case 2:
-    newspeed=132;
-    break;
-    case 3:
-    newspeed=133;
-    break;
-    case 4:
-    newspeed=134;
-    break;
-*//*
-    
-    case 0:  //24C
-    newspeed=141;
-    break;
-    case 1: //22c
-    newspeed=143;
-    break;
-    case 2: //21c
-    newspeed=144;
-    break;
-    case 3: //20c
-    newspeed=145;
-    break;
-    case 4: //18C
-    newspeed=147;
-    break;
-  }*/
   analogWrite( TempReaderPin, newspeed); 
   delay(500); // to prevent read errors
   Serial.print(" Setpoint=");
@@ -489,29 +423,6 @@ void ZLFP10Thermostat::Calibrate()
   }
   
 }
-/*
-
-void ZLFP10Thermostat::loop() {
-
-    // once a second read temp, if changed then 
-    // once a minute, and on change in temp, read settings
-    float oldtemp = temp;
-    delay(10000);
-    ReadTemp();
-    if (!isnan(temp))
-    {
-            ReadSettings();
-
-                Serial.println();
-        DisplayStatus();
-    }
-    else
-    {
-        temp = oldtemp;
-    }
-
-
-}*/
 
 void ZLFP10Thermostat::loop() {
 
@@ -547,195 +458,3 @@ void ZLFP10Thermostat::loop() {
 
 
 }
-/*
-
-void get(int reg, char * desc)
-{
-
-      //ModbusRTUClient.requestFrom(address, HOLDING_REGISTERS, reg, 1);
-      ModbusRTUClient.requestFrom(address, INPUT_REGISTERS, reg, 1);
-
-
-  delay(200);
-    short rawdata = ModbusRTUClient.read();
-
-      Serial.print(desc);
-      Serial.print(" = ");
-      Serial.println(rawdata);
-
-
-
-}
-short settemp=250;
-short fanspeed=0;
-void loop2() {
-
-  Serial.println(" Loop");
-  //int retval=ModbusRTUClient.holdingRegisterWrite(15, 0x6E8F, 4); fancoild doesn't support this
-/*  ModbusRTUClient.beginTransmission(15, HOLDING_REGISTERS, 0x6E97, sizeof(settemp));
-  ModbusRTUClient.write(settemp);
-  int retval=ModbusRTUClient.endTransmission();
-  Serial.println(retval);
-  Serial.println(settemp);
-  Serial.println(".");
-  delay(1000);*/
-  /*
-
-  if(fanspeed >0)
-  {
-  short mode=3; // ventilate
-  int retval;
-  retval=ModbusRTUClient.beginTransmission(15, HOLDING_REGISTERS, 0x6E8e, sizeof(fanspeed)*2);
-  Serial.println(retval);
-  retval=ModbusRTUClient.write(mode);
-  Serial.println(retval);
-  retval=ModbusRTUClient.write(fanspeed);
-  Serial.println(retval);
-  retval=ModbusRTUClient.endTransmission();
-  Serial.println(retval);
-  Serial.println(fanspeed--);
-  Serial.println(".");
-
-  }
-delay(30000);
-  int holdingFirst=0x6E8D;
-  int inputFirst=0xB6D1;
-  int holdingCount=21;
-  int inputCount=10;
-
-
-  ModbusRTUClient.requestFrom(15, HOLDING_REGISTERS, holdingFirst, holdingCount);
-  int x;
-  for(x=0; x< holdingCount; x++)
-  {
-      short rawdata = ModbusRTUClient.read();
-      Serial.print(HoldingLabels[x]);
-      Serial.print(" = ");
-      Serial.println(rawdata);
-
-  }
-  ModbusRTUClient.requestFrom(15, INPUT_REGISTERS, inputFirst, inputCount);
-
-  for(x=0; x< inputCount; x++)
-  {
-      short rawdata = ModbusRTUClient.read();
-      Serial.print(InputLabels[x]);
-      Serial.print(" = ");
-      Serial.println(rawdata);
-
-  }
-  delay(1000);
-  /*
-   get(0x6E8D, "On/Off");
-
-  get(0x6E8E, "Mode");
-  get(0x6E97, "heating set temperature ");
-  get(0x6E8F, "Fanspeed");
-  get(0xB6D3,"Current fan speed");
-  get(0xB6D2, "Coil temp");
-
-  get(0xB6D1,"Room temperature" );
-  get(0x6EA0,"Master/Slave");
-
-  get(0x6EA1,"Unit address");
-  get(0xB6D4,"Fan revolution");
-
- */
- /*
-
-if(fanspeed > 5)
- while (1);
-}*/
-
-#ifdef DEBUG
-const char * HoldingLabels[]={"On/Off",
-"Mode",
-"Fanspeed",
-"","",
-"Timer off",
-"Timer off",
-"Max. set temperature",
-"Min. set temperature",
-"Cooling set temperature",
-"heating set temperature",
-"Cooling set temperature at auto mode",
-"heating set temperature at auto mode",
-"Anti-cooling wind setting temperature",
-"Whether to start anti-hot wind function",
-"Whether to start ultra-low wind function",
-"Whether to use vavle",
-"Whether to use floor heating",
-"Whether to use Fahrenheit",
-"Master/Slave",
-"Unit address"
-};
-
-char * InputLabels[]={"Room temperature",
-"Coil temperature",
-"Current fan speed",
-"Fan revolution",
-"Electromagnetic Valve",
-"Remote on/off",
-"Simulation signal",
-"Fan speed signal feedback fault",
-"Room temperature sensor fault",
-"Coil temperature sensor fault"
-};
-#endif
-/*
-void SetAutoTemps()
-{
-  int retval;
-  short heattemp=200;
-  short cooltemp=300;
-  delay(100);
-
-  Serial.print(" ");
-  Serial.println("updating auto temps");
-  retval = ModbusRTUClient.beginTransmission(address, HOLDING_REGISTERS, 0x6E98, sizeof(heattemp)*2 );
-  if (!retval) {
-    Serial.println("Error in beginTransmission");
-  }
-  retval = ModbusRTUClient.write(cooltemp);
-  retval = ModbusRTUClient.write(heattemp);
-  if (!retval) {
-    Serial.println("Error in write mode");
-  }
-  delay(100);
-  retval = ModbusRTUClient.endTransmission();
-
-  if (!retval) {
-    Serial.println("Error in endTransmission");
-    delay(2000);
-  }
-  delay(100);
-}
-*/
-/*void SetPlus5()
-// set thermostat setpoint to 22.5
-{
-    int retval;
-    short data5 = settemp + 5;
-    delay(100);
-    Serial.print(settemp);
-    Serial.print(" ");
-    Serial.println(settemp % 10);
-    Serial.println("updating thermostat");
-    retval = ModbusRTUClient.beginTransmission(address, HOLDING_REGISTERS, 0x6E97, sizeof(data5));
-    if (!retval) {
-        Serial.println("Error in beginTransmission");
-    }
-    retval = ModbusRTUClient.write(data5);
-    if (!retval) {
-        Serial.println("Error in write mode");
-    }
-    retval = ModbusRTUClient.endTransmission();
-    delay(100);
-    if (!retval) {
-        Serial.println("Error in endTransmission");
-        delay(2000);
-    }
-    delay(100);
-}
-
-*/

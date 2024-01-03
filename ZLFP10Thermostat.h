@@ -51,5 +51,3 @@ public:
 };
 
 extern ZLFP10Thermostat theThermostat;
-extern const char * HoldingLabels[];
-extern  char * InputLabels[];
