@@ -30,21 +30,19 @@ void ZLFP10Thermostat::setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS
             ;
 
     }
-    fanspeed = -1;
-    startingmode = true;
-    Calibrate();
     Serial.println("done starting");
 }
 
 void ZLFP10Thermostat::ReadSettings() {
-    int holdingCount = 21;
-    int inputCount = 10;
-    int holdingFirst = 0x6E8D;
-    int inputFirst = 0xB6D1;
+  
+    #define HOLDINGCOUNT  21
+    #define INPUTCOUNT  10
+    #define HOLDINGFIRST  0x6E8D
+    #define INPUTFIRST  0xB6D1
 
-    short holdingData[holdingCount];
-    short inputData[inputCount];
-    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, HOLDING_REGISTERS, holdingFirst, holdingCount))
+    short holdingData[HOLDINGCOUNT];
+    short inputData[INPUTCOUNT];
+    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, HOLDING_REGISTERS, HOLDINGFIRST, HOLDINGCOUNT))
     {
       Serial.println();
       Serial.print("Error reading holding registers");
@@ -52,26 +50,56 @@ void ZLFP10Thermostat::ReadSettings() {
       return;
     }
     int x;
-    for (x = 0; x < holdingCount; x++) {
+    for (x = 0; x < HOLDINGCOUNT; x++) {
         holdingData[x] = ModbusRTUClient.read();
 
     }
     delay(150);  // need a little bit of time between requests
 
-    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, INPUT_REGISTERS, inputFirst, inputCount))
+    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, INPUT_REGISTERS, INPUTFIRST, INPUTCOUNT))
     {
       Serial.println();
       Serial.print("Error reading input registers");
       return;
     }
 
-    for (x = 0; x < inputCount; x++) {
+    for (x = 0; x < INPUTCOUNT; x++) {
         inputData[x] = ModbusRTUClient.read();
     }
 
     actualOnoff = holdingData[0];
-    actualMode = holdingData[1];
-    settemp = holdingData[10] ;
+    if(holdingData[1]== MODE_AUTO) // auto temp mode, compare setpoints against actual temp
+    {
+      if(temp > holdingData[11]/10) // cooling set point
+      {
+        actualMode=MODE_COOL;
+      }
+      if(temp < holdingData[12]/10) // cooling set point
+      {
+        actualMode=MODE_HEAT;
+      }
+
+      // have to break this out because setpoint could change outside of mode change
+      if(actualMode== MODE_HEAT)
+      {
+        settemp=holdingData[12];
+      }
+      if(actualMode== MODE_COOL)
+      {
+        settemp= holdingData[11];
+      }
+
+    }
+    else
+    {
+      actualMode = holdingData[1];
+      settemp=0;
+      if(actualMode==MODE_HEAT)
+        settemp = holdingData[10] ;
+      if(actualMode==MODE_COOL)
+        settemp = holdingData[9] ;
+  }
+  
 
     reportedRoomTemp = inputData[0];
     coiltemp = inputData[1];
@@ -79,6 +107,7 @@ void ZLFP10Thermostat::ReadSettings() {
     reportedRPM = inputData[3];
     valveOpen = inputData[4];
 
+// fan setting is holdingData[2];
 
 }
 
@@ -88,50 +117,60 @@ void ZLFP10Thermostat::ReadTemp() {
     temp = sensor.readTemperature();
 }
 
+void ZLFP10Thermostat::OnHitUpperLimit()
+ // called when the upper thermostat limit is hit
+ {
+    if(actualMode==MODE_HEAT)
+      fanspeed--;
+    if(actualMode==MODE_COOL)
+      fanspeed++;
+    // move the threshold up by a unit so we don't trigger again
+    upperthreshold += 0.1;
+    nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
+    // if we're turning fan off, allow another 60 seconds to turn it back on again
+    // when you turn the fan speed off, it shuts off the zone valve. When you turn it back on again it takes about 60 seconds for the coil to heat up
+    if(fanspeed <=MINFANSPEED)
+    {
+      nextAdjustmentTime+=60000;
+    }
+
+ }
+void ZLFP10Thermostat::OnHitLowerLimit()
+ // called when the lower thermostat limit is hit
+ {
+
+    if(actualMode==MODE_HEAT)
+      fanspeed++;
+    if(actualMode==MODE_COOL)
+    {
+      fanspeed--;
+      if(fanspeed <=ULOWFANSPEED)
+      {
+        fanspeed=ULOWFANSPEED;
+      }
+    }
+    // move the threshold down a unit
+    lowerthreshold -= 0.1;
+    nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
+    // if we're turning fan off, allow another 60 seconds to turn it back on again
+    if(fanspeed <=MINFANSPEED)
+    {
+      nextAdjustmentTime+=60000;
+    }
+
+ }
 
 
-void ZLFP10Thermostat::SetFanSpeed(short newFanSpeed)
+void ZLFP10Thermostat::SetFanSpeed()
 {
   // version 3 -- look up setting in the table created in Calibrate()
 
-  int newspeed=0;
-  newspeed=SetLevels[newFanSpeed];
-  /* version 2
-  Serial.println();
-  Serial.print("Setting fan speed=");
-  Serial.print(newFanSpeed);
-  // the fan speed is setpoint-reported temperature
-  // Using the onboard 5V, it seems that reported=165-input
-  // which gives input=165-reported=165-(setpoint-fanspeed)= 165-setpoint+fanspeed
-  // if fanspeed is Min or max, bump it to be sure
-
-  // that's the calculated fan speed. But if we get called again, and the newFanSpeed is the same as last time we were called, it's
-  // because the reported fan speed hasn't met what we requested. In that case, bump the setting in the direction that we're off
-  newspeed= 165-settemp/10+newFanSpeed;
-  if(newFanSpeed==MINFANSPEED)
-  {
-    newspeed--;
-  }
-  if(newFanSpeed==MAXFANSPEED)
-  {
-    newspeed++;
-  }
-  if(newFanSpeed==lastFanSpeed) // we've been here before
-  {
-    Serial.println("Overriding fan speed:");
-    Serial.print(newspeed);
-    newspeed=lastFanSpeedOutput+lastFanSpeed-actualFanspeed;
-    Serial.print(" with ");
-    Serial.print(newspeed);
-  }
-  lastFanSpeed=newFanSpeed;
-  lastFanSpeedOutput=newspeed; 
-  */ 
-  //end of version 2
-  analogWrite( TempReaderPin, newspeed); 
+  int newSetting;
+  newSetting=SetLevels[fanspeed];
+  analogWrite( TempReaderPin, newSetting); 
   delay(500); // to prevent read errors
   Serial.print(" Setpoint=");
-  Serial.print(newspeed);
+  Serial.print(newSetting);
   Serial.println();
 
 }
@@ -157,12 +196,50 @@ void ZLFP10Thermostat::SetFanSpeed(short newFanSpeed)
 // On startup, if the temperature is below the setpoint the fan is put on highest speed until the setpoint is reached for the first time.
 // This is tracked in the variable startingmode.
 
-bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp) 
+// modes
+//0=auto；1=cooling;2=dehumidification；3=ventilate；4=heating；
+// dehum and ventilate don't care about temperature, just let run
+// cooling and heating are the same, the only difference is which direction the temperature goes in
+// auto I need to think about
+
+bool ZLFP10Thermostat::UpdateFanSpeed() 
 
 {
+    // if upperthreshold is zero, we're being called for the first time
+    if (upperthreshold == 0)
+    {
+        
+        upperthreshold = ((float)(settemp + THERMOSTAT_INTERVAL)) / 10.0;
+        lowerthreshold = ((float)settemp - THERMOSTAT_INTERVAL) / 10.0;
+        // if we're outside the thermostat band, set to off or highest. Otherwise do nothing, just keep doing what you're doing
+        if(actualMode==MODE_HEAT)
+        {
+          if (temp >= upperthreshold) {
+
+            fanspeed = MINFANSPEED;
+          }
+          if (temp < lowerthreshold) {
+
+            fanspeed = MAXFANSPEED;
+          }
+        }
+        if(actualMode==MODE_COOL)
+        {
+          if (temp < lowerthreshold) {
+            // in cool mode, run at Ultra-low at all times for dehumidification
+            fanspeed = ULOWFANSPEED;
+          }
+          if (temp >= upperthreshold) {
+
+            fanspeed = MAXFANSPEED;
+          }
+        }
+    }
 
 
-    // does the threshold need to be adjusted? Have we move two units closer to the setpoint?
+    //Whenever we cross a threshold, we increase that threshold so we don't keep crossing back and forth
+    // When we move 2 units away from the threshold toward the setpoint, then reset the threshold 
+    //does the threshold need to be adjusted? Have we moved two units closer to the setpoint?
     if (upperthreshold > temp + 0.2)
     {
         upperthreshold = temp + 0.2;
@@ -183,51 +260,26 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp)
 
 
   
-    // if oldtemp is zero, we're being called for the first time
-    if (oldtemp == 0)
-    {
-        // if we're outside the thermostat band, set to off or highest. Otherwise do nothing, just keep doing what you're doing
-        upperthreshold = ((float)(settemp + THERMOSTAT_INTERVAL)) / 10.0;
-        lowerthreshold = ((float)settemp - THERMOSTAT_INTERVAL) / 10.0;
-
-        if (temp >= upperthreshold) {
-
-            fanspeed = MINFANSPEED;
-        }
-        if (temp < lowerthreshold) {
-
-            fanspeed = MAXFANSPEED;
-        }
-    }
-    else
-    {
-        if (millis()  > nextAdjustmentTime) // don't adust fan more than once every three minutes
-        {
+    
+    
+      if (millis()  > nextAdjustmentTime) // don't adust fan more than once every three minutes
+      {
           // this is meant to compare temp >=upperthreshold . However since they are floating points the exact equals doesn't always hit
-            if (upperthreshold - temp < 0.09) { 
+            if (upperthreshold - temp < 0.09) 
+            { 
 
                 // only adjust speed down on rising temp
 
-                fanspeed--;
-                // move the threshold up by a unit so we don't trigger again
-                upperthreshold += 0.1;
-                nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
-                // if we're turning fan off, allow another 60 seconds to turn it back on again
-                if(fanspeed <=MINFANSPEED)
-                {
-                  nextAdjustmentTime+=60000;
-                }
+                
+                OnHitUpperLimit();
             }
             if (temp - lowerthreshold < 0.09)
             {
                 // only adjust speed up on falling temperature
-                fanspeed++;
-                // move the threshold down a unit
-                lowerthreshold -= 0.1;
-                nextAdjustmentTime = millis()+ADJUSTMENT_INTERVAL;
-            }
-        }
-    }
+                OnHitLowerLimit();
+          }
+      }
+    
 
     if (fanspeed < MINFANSPEED) {
         fanspeed = MINFANSPEED;
@@ -236,26 +288,40 @@ bool ZLFP10Thermostat::UpdateFanSpeed(float oldtemp)
         fanspeed = MAXFANSPEED;
     }
     
-    // on startup, if we're outside the band we go to highest setting. When we reach the band, throttle back to 2
+    // on startup, if we're outside the band we go to highest setting. The first time we reach the band, throttle back to LOWFANSPEED
     if (startingmode)
     {
-        if (temp > lowerthreshold)
+        if(actualMode==MODE_HEAT)
         {
-            if (fanspeed > 2)
-                fanspeed = 2;
-            startingmode = false;
-            Serial.println("Leaving starting mode");
+          if (temp > lowerthreshold)
+          {
+              if (fanspeed > LOWFANSPEED)
+                  fanspeed = LOWFANSPEED;
+              startingmode = false;
+              Serial.println("Leaving starting mode");
+          }
         }
+        if(actualMode==MODE_COOL)
+        {
+          if (temp < upperthreshold)
+          {
+              if (fanspeed > LOWFANSPEED)
+                  fanspeed = LOWFANSPEED;
+              startingmode = false;
+              Serial.println("Leaving starting mode");
+          }
+        }
+
     }
 
-        if (actualFanspeed == fanspeed)
-        {
+    if (actualFanspeed == fanspeed)
+    {
           // nothing has changed, we're done
             return true;
-        }
+    }
     Serial.println();
 
-    SetFanSpeed(fanspeed);
+    SetFanSpeed();
     ReadSettings(); // read back the settings for display
     return true; // success!
 }
@@ -316,7 +382,18 @@ void ZLFP10Thermostat::DisplayStatus() {
     Serial.print('\r');
 }
 
+void ZLFP10Thermostat::RestartSession()
+{
+    fanspeed = -1;
+    startingmode = true;
+    nextAdjustmentTime = 0;
+    nextcheck = 0;
+    upperthreshold = 0;
+    lowerthreshold=0;
 
+    Calibrate();
+ 
+}
 
 void ZLFP10Thermostat::Calibrate()
 {
@@ -358,9 +435,23 @@ void ZLFP10Thermostat::Calibrate()
   // (LevelH-TargetLevel)/(LevelH-LevlL)= (ReadingH-TargetReading)/(ReadingH-ReadingL); or
   // TargetLevel= LevelH - (LevelH-LevelL)*(ReadingH-TargetReading)/(ReadingH-ReadingL)
 // get initial guesses based on what the extremes of the range told us
-  SetLevels[1]=LevelH + (LevelL-LevelH)*(ReadingH-(settemp-10))/(ReadingH-ReadingL);
-  SetLevels[2]=LevelH + (LevelL-LevelH)*(ReadingH-(settemp-20))/(ReadingH-ReadingL);
-  SetLevels[3]=LevelH + (LevelL-LevelH)*(ReadingH-(settemp-30))/(ReadingH-ReadingL);
+  short temps[3];
+  if(actualMode==MODE_HEAT)
+  {
+    temps[0]=(settemp-10);
+    temps[1]=(settemp-20);
+    temps[2]=(settemp-30);
+  }
+  else
+  {
+    temps[0]=(settemp+10);
+    temps[1]=(settemp+20);
+    temps[2]=(settemp+30);
+
+  }
+  SetLevels[1]=LevelH + (LevelL-LevelH)*(ReadingH-temps[0])/(ReadingH-ReadingL);
+  SetLevels[2]=LevelH + (LevelL-LevelH)*(ReadingH-temps[1])/(ReadingH-ReadingL);
+  SetLevels[3]=LevelH + (LevelL-LevelH)*(ReadingH-temps[2])/(ReadingH-ReadingL);
   int x;
   
   // go through the settings, set each one and then compare what happens and adjust
@@ -383,7 +474,7 @@ void ZLFP10Thermostat::Calibrate()
       Serial.print(reading);
       Serial.print(" . ");
 
-      if(reading != settemp-y*10 )
+      if(reading != temps[y-1] )
       {// need adjustment
         Serial.print(" * ");
         SetLevels[y] += (reading-settemp+y*10)/10;
@@ -408,8 +499,17 @@ void ZLFP10Thermostat::Calibrate()
     }
   
   }// tries
+
+  if(actualMode==MODE_HEAT)
+  {
     SetLevels[0]=SetLevels[1]-2;
     SetLevels[4]=SetLevels[3]+2;
+  }
+  else
+  {
+    SetLevels[0]=SetLevels[1]+2;
+    SetLevels[4]=SetLevels[3]-2;
+  }
   if(goodTries==3)
   {
     Serial.println("Done Calibrating");
@@ -424,9 +524,12 @@ void ZLFP10Thermostat::Calibrate()
   
 }
 
-void ZLFP10Thermostat::loop() {
+void ZLFP10Thermostat::loop() 
 
-    // once a second read temp, if changed then 
+{
+
+
+    // once a second read temp, 
     // once a minute, and on change in temp, read settings
     float oldtemp = temp;
     delay(1000);
@@ -436,15 +539,29 @@ void ZLFP10Thermostat::loop() {
         unsigned long now = millis();
         if (oldtemp != temp || now > nextcheck  || nextcheck == 0)
         {
-            ReadSettings();
+            short oldOnOff, oldMode, oldSetTemp;
+            oldOnOff=actualOnoff;
+            oldMode=actualMode ;
+            oldSetTemp= settemp;
 
-            if (UpdateFanSpeed(oldtemp))
+    
+            ReadSettings();
+            // if on/off, mode or setpoint has changed since last iteration, reset everything
+            if(oldOnOff!=actualOnoff || oldMode!=actualMode ||  oldSetTemp!= settemp)
+            {
+              RestartSession();
+            }
+
+
+
+            if (UpdateFanSpeed())
             {
                 nextcheck = now +60000; // don't check for 60 seconds unless the temperature chnages
             }
             else
             {
                 Serial.println();
+                // error. don't count this as a successful update, so dont update temperature
                 temp = oldtemp;
             }
         }
@@ -453,6 +570,7 @@ void ZLFP10Thermostat::loop() {
     }
     else
     {
+        
         temp = oldtemp;
     }
 
