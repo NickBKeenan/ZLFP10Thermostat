@@ -29,7 +29,4 @@ There are two wires going to the temperature sensor on the unit. One is connecte
 
 On the ZLFP10 controller board there is a 5V pin that is used to power the Arduino. You also need attachments to the Modbus pins, and the ground that is next to them.
 
-
-Still to do: 
-* Support for cooling mode
-* Add detection of change of setpoint or heating/cooling mode
+The code also works in cooling mode. Currently in cooling mode the fan is never turned off, ultra-low is the lowest setting. This allows for continuous dehumidification.   
