@@ -21,13 +21,13 @@ MAX485 data is on Serial1 (pins 1 and 2)
 Fan coil unit temperature input -- pin 9
 
 
-The program reads the temperature setting of the fan coil unit. It then controls the fan to try and hold that setpoint, raising the fan speed when the temperature falls below the set point and lowering it when it rises above. If the unit is on the lowest fan speed and the temperature is over the setpoint it turns the unit off. 
+The program reads the temperature setting of the fan coil unit. It then controls the fan to try and hold that setpoint, raising the fan speed when the temperature falls below the set point and lowering it when it rises above. If the unit is on the lowest fan speed and the temperature goes over the setpoint it turns the unit off. 
 
 It does this by spoofing the temperature sensor on the unit. In automatic fan mode, the unit reads the room temperature and sets the fan speed depending on the difference between the set point and the room temperature. If the difference is 1c the fan is on the lowest setting, for each degree of additional difference the setting goes up step. If the difference is zero the fan turns off. 
 
 There are two wires going to the temperature sensor on the unit. One is connected to ground. The other one is cut and connected to a PWM pin (pin 9 by default) with the capacitor between the pin and ground.
 
-On the ZLFP10 controller board there is a 5V pin that is used to power the Arduino. You also need attachments to the Modbus pins, and the ground that is next to them.
+On the ZLFP10 controller board there is a 5V pin that we will use to power the Arduino. You also need attachments to the Modbus pins, and the ground that is next to them.
 
 The code also works in cooling mode. Currently in cooling mode the fan is never turned off, ultra-low is the lowest setting. This allows for continuous dehumidification.   
 
@@ -36,7 +36,7 @@ Construction notes:
 I built this using an Arduino Uno, R2. In order to use the Arduino Modbus library you have to use an Arduino with an Atmega processor. 
 
 I find a couple of things helpful while prototyping. One is a collection of breadboard connectors, like this: https://www.amazon.com/gp/product/B01EV70C78/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&th=1
-The connectors on these fit 18 gauge thermostt wire, so you can use a female-to-female connector to connect thermostat wire to a pin on a board. 
+The connectors on these fit 18 gauge thermostat wire, so you can use a female-to-female connector to connect thermostat wire to a pin on a board. 
 
 Another is insulation displacing crimp connectors, like these: https://www.amazon.com/gp/product/B008EAK2VK/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&th=1
 Even though they say 19 is the maximum wire size, I have no problem using them with 18 AWG thermostat wire.
