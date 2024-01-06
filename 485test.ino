@@ -1,9 +1,11 @@
 
+
 #include "ZLFP10Thermostat.h"
+
 #define SERIAL_PORT_HARDWARE Serial1
 #define RS485_TX_PIN 18
-#define RS485_DE_PIN 7
-#define RS485_RE_PIN 8
+#define RS485_DE_PIN 8
+#define RS485_RE_PIN 7
 #define DHT_SENSOR_PIN 6
 #define TEMP_READER_PIN 9
 

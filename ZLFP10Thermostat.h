@@ -1,6 +1,30 @@
-#define AVR
+// define this if you want debug output
+#define DEBUGOUTPUT_ENABLED  
+// if you define DEBUGOUTPUT_ENABLED, you have to define one of the following two:
+//#define DEBUGOUTPUTDEVICE_LCD
+#define DEBUGOUTPUTDEVICE_SERIAL
+
+#ifdef DEBUGOUTPUT_ENABLED  
+  #ifdef DEBUGOUTPUTDEVICE_SERIAL
+    #define DEBUGOUT(x) Serial.print(x)
+    #define DEBUGOUT2(x,y) Serial.print(x,y)
+    #define DEBUGOUTLN(x) Serial.println(x)
+  #endif
+  #ifdef DEBUGOUTPUTDEVICE_LCD
+    #define DEBUGOUT(x) lcd.print(x)
+    #define DEBUGOUT2(x,y) lcd.print(x,y)
+    #define DEBUGOUTLN(x) lcd.setCursor(0, 0);lcd.print(x)
+  #endif
+#else
+  #define DEBUGOUT(x)
+  #define DEBUGOUT2(x,y)
+  #define DEBUGOUTLN(x) 
+#endif
+
 #include <ArduinoModbus.h>
-#include <LiquidCrystal_I2C.h>
+#ifdef DEBUGOUTPUTDEVICE_LCD
+  #include <LiquidCrystal_I2C.h>
+#endif  
 #include <DHT.h>
 
 // Set up a new SoftwareSerial object
@@ -44,6 +68,9 @@ class ZLFP10Thermostat
     short lastFanSpeed=0; // track what we tried to set the last time we set
     int lastFanSpeedOutput=0;
     short SetLevels[5]; // the digital output level for each fan speed, set in Calibrate(); 
+    #ifdef DEBUGOUTPUTDEVICE_LCD
+      LiquidCrystal_I2C lcd;
+    #endif
 public:
     ZLFP10Thermostat(uint8_t pDHTSensorPin);
     void setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin);
@@ -57,6 +84,8 @@ public:
     void loop();
     void RestartSession(); // called when the mode or setpoint changes
     void Calibrate();   // calibrate temperature spoofing
+    void DebugSetup(); // setup the debug output device, can be Serial or LCD
+  
 
 };
 

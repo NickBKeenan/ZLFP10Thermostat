@@ -6,31 +6,37 @@
 
 
 ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):sensor(pDHTSensorPin, DHT22,6)
+#ifdef DEBUGOUTPUTDEVICE_LCD
+,lcd(0x27, 20, 4)
+#endif
 {
 
 }
 
 void ZLFP10Thermostat::setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin) 
 {
-
+    DebugSetup();
 
 
     sensor.begin();
     TempReaderPin= pTempReaderPin;
      pinMode(TempReaderPin, OUTPUT);
-     analogWrite(TempReaderPin, 134);
-    RS485.setPins(pRS485TXPin, pRS485DEPin, pRS485REPin);
+     analogWrite(TempReaderPin, 134); // write a random value to silence the alarm
     RS485.setSerial(phwSerial);
-    Serial.begin(9600);
-    Serial.println("starting");
+    RS485.setPins(pRS485TXPin, pRS485DEPin, pRS485REPin);
+    phwSerial->begin(9600);
+// 
+ //   RS485.begin(9600);
+    
+    DEBUGOUTLN("starting");
 
     if (!ModbusRTUClient.begin(9600)) {
-        Serial.println("Failed to start Modbus RTU Server!");
+        DEBUGOUTLN("Failed to start Modbus RTU Server!");
         while (1)
             ;
 
     }
-    Serial.println("done starting");
+    DEBUGOUTLN("done starting");
 }
 
 void ZLFP10Thermostat::ReadSettings() {
@@ -44,9 +50,9 @@ void ZLFP10Thermostat::ReadSettings() {
     short inputData[INPUTCOUNT];
     if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, HOLDING_REGISTERS, HOLDINGFIRST, HOLDINGCOUNT))
     {
-      Serial.println();
-      Serial.print("Error reading holding registers");
-      Serial.println();
+      DEBUGOUTLN("");
+      DEBUGOUT("Error reading holding registers");
+      DEBUGOUTLN("");
       return;
     }
     int x;
@@ -58,8 +64,8 @@ void ZLFP10Thermostat::ReadSettings() {
 
     if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, INPUT_REGISTERS, INPUTFIRST, INPUTCOUNT))
     {
-      Serial.println();
-      Serial.print("Error reading input registers");
+      DEBUGOUTLN("");
+      DEBUGOUT("Error reading input registers");
       return;
     }
 
@@ -169,9 +175,9 @@ void ZLFP10Thermostat::SetFanSpeed()
   newSetting=SetLevels[fanspeed];
   analogWrite( TempReaderPin, newSetting); 
   delay(500); // to prevent read errors
-  Serial.print(" Setpoint=");
-  Serial.print(newSetting);
-  Serial.println();
+  DEBUGOUT(" Setpoint=");
+  DEBUGOUT(newSetting);
+  DEBUGOUTLN("");
 
 }
 
@@ -298,7 +304,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed()
               if (fanspeed > LOWFANSPEED)
                   fanspeed = LOWFANSPEED;
               startingmode = false;
-              Serial.println("Leaving starting mode");
+              DEBUGOUTLN("Leaving starting mode");
           }
         }
         if(actualMode==MODE_COOL)
@@ -308,7 +314,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed()
               if (fanspeed > LOWFANSPEED)
                   fanspeed = LOWFANSPEED;
               startingmode = false;
-              Serial.println("Leaving starting mode");
+              DEBUGOUTLN("Leaving starting mode");
           }
         }
 
@@ -319,7 +325,7 @@ bool ZLFP10Thermostat::UpdateFanSpeed()
           // nothing has changed, we're done
             return true;
     }
-    Serial.println();
+    DEBUGOUTLN("");
 
     SetFanSpeed();
     ReadSettings(); // read back the settings for display
@@ -339,47 +345,47 @@ void ZLFP10Thermostat::DisplayStatus() {
     hour = minutes / 60;
     minutes -= hour * 60;
 
-    Serial.print(hour);
-    Serial.print(":");
+    DEBUGOUT(hour);
+    DEBUGOUT(":");
     if (minutes < 10)
-        Serial.print('0');
-    Serial.print(minutes);
-    Serial.print(":");
+        DEBUGOUT('0');
+    DEBUGOUT(minutes);
+    DEBUGOUT(":");
 
     if (seconds < 10)
-        Serial.print('0');
-    Serial.print(seconds);
-    Serial.print(", Temp=");
-    Serial.print(temp, 1);
-    Serial.print(", Humidity=");
-    Serial.print(hum, 0);
-    Serial.print(", Setpoint:");
-    Serial.print(settemp / 10);
-    Serial.print('.');
-    Serial.print(settemp % 10);
-    Serial.print(", Fan Speed=");
-    Serial.print(fanspeed);
-    Serial.print(", Reported Room Temp=");
-    Serial.print(reportedRoomTemp / 10);
-    Serial.print('.');
-    Serial.print(reportedRoomTemp % 10);
-    Serial.print(", Fan RPM=");
-    Serial.print(reportedRPM);
+        DEBUGOUT('0');
+    DEBUGOUT(seconds);
+    DEBUGOUT(", Temp=");
+    DEBUGOUT2(temp, 1);
+    DEBUGOUT(", Humidity=");
+    DEBUGOUT2(hum, 0);
+    DEBUGOUT(", Setpoint:");
+    DEBUGOUT(settemp / 10);
+    DEBUGOUT('.');
+    DEBUGOUT(settemp % 10);
+    DEBUGOUT(", Fan Speed=");
+    DEBUGOUT(fanspeed);
+    DEBUGOUT(", Reported Room Temp=");
+    DEBUGOUT(reportedRoomTemp / 10);
+    DEBUGOUT('.');
+    DEBUGOUT(reportedRoomTemp % 10);
+    DEBUGOUT(", Fan RPM=");
+    DEBUGOUT(reportedRPM);
 
-    Serial.print(", Reported Fan setting=");
-    Serial.print(actualFanspeed);
-    Serial.print(", Coil Temperature=");
-    Serial.print(coiltemp / 10);
-    Serial.print(", Mode=");
-    Serial.print(actualMode); 
-    Serial.print(", Valve=");
-    Serial.print(valveOpen);
-    Serial.print(", U=");
-    Serial.print(upperthreshold);
-    Serial.print(" L=");
-    Serial.print(lowerthreshold);
+    DEBUGOUT(", Reported Fan setting=");
+    DEBUGOUT(actualFanspeed);
+    DEBUGOUT(", Coil Temperature=");
+    DEBUGOUT(coiltemp / 10);
+    DEBUGOUT(", Mode=");
+    DEBUGOUT(actualMode); 
+    DEBUGOUT(", Valve=");
+    DEBUGOUT(valveOpen);
+    DEBUGOUT(", U=");
+    DEBUGOUT(upperthreshold);
+    DEBUGOUT(" L=");
+    DEBUGOUT(lowerthreshold);
 
-    Serial.print('\r');
+    DEBUGOUT('\r');
 }
 
 void ZLFP10Thermostat::RestartSession()
@@ -406,7 +412,7 @@ void ZLFP10Thermostat::Calibrate()
 
   // We only need three points 1,2,3. Zero is anything less than one, and four is anything less than three. 
   //So figure out those three and then substract two from one to get zero, and add two to three to get four
-  Serial.println("Calibrating...");
+  DEBUGOUTLN("Calibrating...");
   short LevelL, LevelH;   // input levels for the extremes, low and high
   short ReadingL, ReadingH; // room temperature readings we get back
   LevelL= 165-15; // set for 15 C
@@ -423,14 +429,14 @@ void ZLFP10Thermostat::Calibrate()
   delay(1000);
   ReadSettings();
   ReadingH=reportedRoomTemp;
-  Serial.print(LevelL); //150
-  Serial.print(" ");
-  Serial.print(ReadingL); //170 17c
-  Serial.print(" ");
-  Serial.print(LevelH); //135
-  Serial.print(" ");
-  Serial.print(ReadingH); //300 30c
-  Serial.print(" ");
+  DEBUGOUT(LevelL); //150
+  DEBUGOUT(" ");
+  DEBUGOUT(ReadingL); //170 17c
+  DEBUGOUT(" ");
+  DEBUGOUT(LevelH); //135
+  DEBUGOUT(" ");
+  DEBUGOUT(ReadingH); //300 30c
+  DEBUGOUT(" ");
 
   // (LevelH-TargetLevel)/(LevelH-LevlL)= (ReadingH-TargetReading)/(ReadingH-ReadingL); or
   // TargetLevel= LevelH - (LevelH-LevelL)*(ReadingH-TargetReading)/(ReadingH-ReadingL)
@@ -460,31 +466,31 @@ void ZLFP10Thermostat::Calibrate()
   for(x=0; x< 30 && goodTries < 3; x++)
   {
     int y;
-    Serial.println();
+    DEBUGOUTLN("");
     int goodLevels=0;    // number of successful reads in this iteration
     for(y=1; y< 4; y++)
     {
       short reading;
-      Serial.print(SetLevels[y]);
+      DEBUGOUT(SetLevels[y]);
       analogWrite(TempReaderPin, SetLevels[y]);
       delay(1000);
       ReadSettings();
       reading=reportedRoomTemp;
-      Serial.print(" ");
-      Serial.print(reading);
-      Serial.print(" . ");
+      DEBUGOUT(" ");
+      DEBUGOUT(reading);
+      DEBUGOUT(" . ");
 
       if(reading != temps[y-1] )
       {// need adjustment
-        Serial.print(" * ");
+        DEBUGOUT(" * ");
         SetLevels[y] += (reading-settemp+y*10)/10;
-        Serial.print(SetLevels[y]);
-        Serial.print(" * ");
+        DEBUGOUT(SetLevels[y]);
+        DEBUGOUT(" * ");
         
       }
       else
       {// it works!
-        Serial.print(" - ");
+        DEBUGOUT(" - ");
         goodLevels++;
       }
       
@@ -512,11 +518,11 @@ void ZLFP10Thermostat::Calibrate()
   }
   if(goodTries==3)
   {
-    Serial.println("Done Calibrating");
+    DEBUGOUTLN("Done Calibrating");
   }
   else
   {
-    Serial.println("Unable to calibrate");
+    DEBUGOUTLN("Unable to calibrate");
     // trigger a P5 error
     analogWrite(TempReaderPin,0);
     while(1);
@@ -560,7 +566,7 @@ void ZLFP10Thermostat::loop()
             }
             else
             {
-                Serial.println();
+                DEBUGOUTLN("");
                 // error. don't count this as a successful update, so dont update temperature
                 temp = oldtemp;
             }
@@ -570,9 +576,33 @@ void ZLFP10Thermostat::loop()
     }
     else
     {
-        
+        DEBUGOUT("INVALID TEMP");
         temp = oldtemp;
     }
 
 
+}
+void ZLFP10Thermostat::DebugSetup()
+{
+  #ifdef DEBUGOUTPUT_ENABLED  
+    #ifdef DEBUGOUTPUTDEVICE_SERIAL
+      Serial.begin(9600);
+    #endif
+   #ifdef DEBUGOUTPUTDEVICE_LCD
+       lcd.init();  // initialize the lcd
+       lcd.clear();
+       // Print a message to the LCD.
+        lcd.backlight();
+        lcd.setCursor(0, 0);
+        lcd.print("--------------------");
+        lcd.setCursor(6, 1);
+        lcd.print("GEEEKPI");
+        lcd.setCursor(1, 2);
+        lcd.print("Arduino IIC Screen");
+        lcd.setCursor(0, 3);
+        lcd.print("--------------------");
+        lcd.clear();
+        lcd.setCursor(0, 0);
+   #endif
+   #endif
 }
