@@ -4,7 +4,8 @@
 This is code for overriding the thermostatic control on hydronic fan coil units that use the ZLFP10, such as the Chiltrix CXI series.
 
 In order to use this you need: 
-* An Arduino
+* An Arduino. Right now the only Arduino I've got this working on is the one I happen to have, a UNO Wifi Rev2. The arduino has to have two hardware serial ports
+  which rules out the original Uno. The Modbus library doesn't work on microprocessors which aren't ATMEGA, which rules out the Uno Wifi Rev4.
 * A MAX485 transceiver module (such as https://www.amazon.com/gp/product/B088Q8TD4V/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) 
 * A DHT22 temperature and humidity sensor ( such as https://www.amazon.com/gp/product/B073F472JL/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1)
 * An electrolytic capacitor. I'm not quite sure how small it can be, I'm currently using 680 uF
