@@ -3,7 +3,7 @@
 
 #include "ZLFP10Thermostat.h"
 
-
+ModbusMaster node;
 
 ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):sensor(pDHTSensorPin, DHT22,6)
 #ifdef DEBUGOUTPUTDEVICE_LCD
@@ -12,30 +12,33 @@ ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):sensor(pDHTSensorPin, 
 {
 
 }
+void ZLFP10Thermostat::setTempReader(uint8_t pTempReaderPin)
+{
+  TempReaderPin= pTempReaderPin;
+}
+void ZLFP10Thermostat::setSerial(SoftwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin)
+{
+    pswSerial.begin(9600);
 
-void ZLFP10Thermostat::setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin) 
+    node.begin(15, pswSerial);
+  DEBUGOUTLN("node begin");
+  node.SetPins(pRS485DEPin, pRS485REPin);
+  DEBUGOUTLN("Pins set");    
+
+
+}
+
+void ZLFP10Thermostat::setup() 
 {
     DebugSetup();
+    DEBUGOUTLN("starting");
 
 
     sensor.begin();
-    TempReaderPin= pTempReaderPin;
+  
      pinMode(TempReaderPin, OUTPUT);
      analogWrite(TempReaderPin, 134); // write a random value to silence the alarm
-    RS485.setSerial(phwSerial);
-    RS485.setPins(pRS485TXPin, pRS485DEPin, pRS485REPin);
-    phwSerial->begin(9600);
-// 
- //   RS485.begin(9600);
-    
-    DEBUGOUTLN("starting");
 
-    if (!ModbusRTUClient.begin(9600)) {
-        DEBUGOUTLN("Failed to start Modbus RTU Server!");
-        while (1)
-            ;
-
-    }
     DEBUGOUTLN("done starting");
 }
 
@@ -48,29 +51,38 @@ void ZLFP10Thermostat::ReadSettings() {
 
     short holdingData[HOLDINGCOUNT];
     short inputData[INPUTCOUNT];
-    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, HOLDING_REGISTERS, HOLDINGFIRST, HOLDINGCOUNT))
+      uint8_t  result;
+
+    result = node.readHoldingRegisters( HOLDINGFIRST, HOLDINGCOUNT);
+    if(result !=0)
     {
       DEBUGOUTLN("");
-      DEBUGOUT("Error reading holding registers");
+      DEBUGOUT("Error reading holding registers ");
+      DEBUGOUT2(result, HEX);
       DEBUGOUTLN("");
       return;
     }
     int x;
     for (x = 0; x < HOLDINGCOUNT; x++) {
-        holdingData[x] = ModbusRTUClient.read();
+              holdingData[x] = node.getResponseBuffer(x);
+
 
     }
     delay(150);  // need a little bit of time between requests
 
-    if(!ModbusRTUClient.requestFrom(UNIT_ADDRESS, INPUT_REGISTERS, INPUTFIRST, INPUTCOUNT))
+    result = node.readInputRegisters( INPUTFIRST, INPUTCOUNT);
+    if(result !=0)
     {
       DEBUGOUTLN("");
-      DEBUGOUT("Error reading input registers");
+      DEBUGOUT("Error reading input registers ");
+      DEBUGOUT2(result, HEX);
+      DEBUGOUTLN("");
+      
       return;
     }
 
     for (x = 0; x < INPUTCOUNT; x++) {
-        inputData[x] = ModbusRTUClient.read();
+        inputData[x] = node.getResponseBuffer(x);
     }
 
     actualOnoff = holdingData[0];
@@ -109,6 +121,10 @@ void ZLFP10Thermostat::ReadSettings() {
 
     reportedRoomTemp = inputData[0];
     coiltemp = inputData[1];
+    if(actualFanspeed != inputData[2] && !startingmode)
+    {
+      DEBUGOUTLN("");
+    }
     actualFanspeed = inputData[2];
     reportedRPM = inputData[3];
     valveOpen = inputData[4];
@@ -562,7 +578,7 @@ void ZLFP10Thermostat::loop()
 
             if (UpdateFanSpeed())
             {
-                nextcheck = now +60000; // don't check for 60 seconds unless the temperature chnages
+                nextcheck = now +10000; // don't check for 60 seconds unless the temperature chnages
             }
             else
             {

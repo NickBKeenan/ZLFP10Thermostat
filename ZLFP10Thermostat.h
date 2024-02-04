@@ -21,7 +21,8 @@
   #define DEBUGOUTLN(x) 
 #endif
 
-#include <ArduinoModbus.h>
+#include <ModbusMaster.h>
+#include <SoftwareSerial.h>
 #ifdef DEBUGOUTPUTDEVICE_LCD
   #include <LiquidCrystal_I2C.h>
 #endif  
@@ -73,7 +74,10 @@ class ZLFP10Thermostat
     #endif
 public:
     ZLFP10Thermostat(uint8_t pDHTSensorPin);
-    void setup(HardwareSerial* phwSerial, int pRS485TXPin, int pRS485DEPin, int pRS485REPin, uint8_t pDHTSensorPin, int pTempReaderPin);
+    
+    void setSerial(SoftwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin);
+    void setTempReader(uint8_t pTempReaderPin);
+    void setup();
     void ReadSettings(); // read from onboard settings
     void ReadTemp(); //read from external temperature probe
     bool UpdateFanSpeed();  // this is really the heart of it
