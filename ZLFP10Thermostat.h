@@ -20,7 +20,7 @@
   #define DEBUGOUT2(x,y)
   #define DEBUGOUTLN(x) 
 #endif
-
+#include <MultiStageThermostat.h>
 #include <ModbusMaster.h>
 #include <SoftwareSerial.h>
 #ifdef DEBUGOUTPUTDEVICE_LCD
@@ -35,43 +35,39 @@
 #define ULOWFANSPEED 1
 #define MINFANSPEED 0  //  0=off
 #define THERMOSTAT_INTERVAL 2  // how many tenths of a degree above and below the setpoint to allow
-#define ADJUSTMENT_INTERVAL 180000 // don't adust more than once every 3 minutes
+#define ADJUSTMENT_INTERVAL 180 // don't adust more than once every 3 minutes
 #define UNIT_ADDRESS 15 // the MODBUS address of the FCU. This can be changed through the control panel if needed.
-#define MODE_AUTO 0
-#define MODE_COOL 1
-#define MODE_DEHU 2
-#define MODE_VENT 3
-#define MODE_HEAT 4
+#define FCU_MODE_AUTO 0
+#define FCU_MODE_COOL 1
+#define FCU_MODE_DEHU 2
+#define FCU_MODE_VENT 3
+#define FCU_MODE_HEAT 4
 
 
 
-class ZLFP10Thermostat
+class ZLFP10Thermostat: public MultiStageThermostat
 {
-    DHT sensor;   // the temp/humidity sensor
+
+  Settings settings;
+    unsigned long nextcheck = 0;   // track the last time we read settings and status from the unit, do it every minute
+
     int TempReaderPin; // PWm pin that connects to FCU temp reader
-    float hum;       //Stores humidity value
-    float temp;      //Stores temperature value
-    short fanspeed;  // fan speed setting
-    short settemp;   // temperature setting from the unit
+    
   
-    bool startingmode;  //this is true until the thermostat has been satisfied for the first time
     short actualOnoff;  // what the unit reports for onoff setting
-    short actualMode;   // what the unit reports for mode -- heat, cool, vent, etc.
-    short actualFanspeed; // what the unit reports for fan speed setting
+    short Mode;   // The mode we're in, heat or cool
+    short reportedFanSetting; // what the unit reports for fan speed setting
     short reportedRoomTemp; // what the unit reports for room temp. Not used, just for curiosity
     short reportedRPM;    // what the unit reports for fan rpm. Not used, just for curiosity
     short coiltemp;     // what the unit reports for coil temperature Not used, just for curiosity
     short valveOpen;  // what the unit reports for zone valve setting.Not used, just for curiosity 
-    float upperthreshold = 0;  // if we hit this temperature, slow the fan down
-    float lowerthreshold = 0; // if we hit this temperature, speed the fan up
-    unsigned long nextAdjustmentTime = 0; //don't adjust the fan speed more than once every three minutes
-    unsigned long nextcheck = 0;   // track the last time we read settings and status from the unit, do it every minute
-    short lastFanSpeed=0; // track what we tried to set the last time we set
-    int lastFanSpeedOutput=0;
+    short lastTempSetting=0; // used for deflutter
+    short FCUSetTemp;
     short SetLevels[5]; // the digital output level for each fan speed, set in Calibrate(); 
     #ifdef DEBUGOUTPUTDEVICE_LCD
       LiquidCrystal_I2C lcd;
     #endif
+    void RestartSession(); // called when the mode or setpoint changes
 public:
     ZLFP10Thermostat(uint8_t pDHTSensorPin);
     
@@ -79,15 +75,11 @@ public:
     void setTempReader(uint8_t pTempReaderPin);
     void setup();
     void ReadSettings(); // read from onboard settings
-    void ReadTemp(); //read from external temperature probe
-    bool UpdateFanSpeed();  // this is really the heart of it
-    void OnHitUpperLimit(); // called when the upper thermostat limit is hit
-    void OnHitLowerLimit(); // called when the lower thermostat limit is hit
-    void SetFanSpeed(); // write out to temperature spoof
+    void SetFanSpeed(int fanspeed); // write out to temperature spoof
     void DisplayStatus();
     void loop();
-    void RestartSession(); // called when the mode or setpoint changes
     void Calibrate();   // calibrate temperature spoofing
+    void DeFlutter();  // if temperature fluttering is detected, revisit the calibration
     void DebugSetup(); // setup the debug output device, can be Serial or LCD
   
 
