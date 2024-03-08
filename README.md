@@ -53,9 +53,10 @@ My Arduino only has one 5V pin, so I make up a "bus" by crimping together everyt
 Review of all of the connections. I list each connection twice, once on each end. This is to make it easier to double-check the wiring.
 
 There are five connections coming out of the fan coil unit: 
-* There is a gray 4-wire terminal block on the PCB, the connections are labeled 12V, 485A, 485B, and ground. 
-  
-  ** 485 A goes to the "A" screw terminal on the 485Max chip (On my unit 485A and B came with wires attached and Wago connectors on them) 
+* There is a gray 4-wire terminal block on the PCB, the connections are labeled 12V, 485A, 485B, and ground. Three of them are used:
+  ** Ground goes to the ground "bus"
+  ** 485 A goes to the "A" screw terminal on the 485Max chip (On my unit 485A and B came with wires attached and Wago connectors on them. The A wire is gray and he B wire is Green. Gray goes to A on the 485Max chip and Green goes to B.) 
+
   ** 485 B goes to the "B" screw terminal on the 485Max chip
 * There is a four-pin connector about a half inch away from that terminal block
    ** Pin 1 is labeled 5V, it connects to the Vin pin of the Arduino
