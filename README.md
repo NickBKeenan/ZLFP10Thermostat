@@ -33,7 +33,7 @@ The code also works in cooling mode. Currently in cooling mode the fan is never 
 
 
 Construction notes: 
-I built this using an Arduino Uno, R2. In order to use the Arduino Modbus library you have to use an Arduino with an Atmega processor. 
+I built this using an Arduino Uno. 
 
 I find a couple of things helpful while prototyping. One is a collection of breadboard connectors, like this: https://www.amazon.com/gp/product/B01EV70C78/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&th=1
 The connectors on these fit 18 gauge thermostat wire, so you can use a female-to-female connector to connect thermostat wire to a pin on a board. 
@@ -67,10 +67,10 @@ On the 485Max chip there are eight connections:
 * B similarly goes to 485 B
 * Vcc goes to the Vcc bus on the Arduino
 * Gnd goes to the ground bus on the Arduino
-* DI Goes to pin 1 on the Arduino
+* DI Goes to pin 3 on the Arduino
 * DE Goes to pin 8 on the Arduino
 * RE Goes to pin 7 on the Arduino
-* RO Goes to pin 0 on the Arduino
+* RO Goes to pin 2 on the Arduino
 
   The DHT22 Temperature/humidity sensor has three connections
 * S (signal) goes to pin 6 on the Arduino
@@ -82,14 +82,14 @@ The capacitor should have a crimp on each lead:
 * Positive side is crimped with the temperature sensor input of the fan coil unit and a jumper going to Pin 9 of the Arduino.
 
   On the Arduino:
-  * Pin 0 goes to R0 on the 485Max
-  * Pin 1 goes to DI on the 485Max
+  * Pin 2 goes to R0 on the 485Max
+  * Pin 3 goes to DI on the 485Max
   * Pin 6 goes to the S pin on the DHT22
   * Pin 7 goes to RE on the 485Max
   * Pin 8 goes to DE on the 485Max
   * Pin 9 goes to a crimp with the positive terminal of the capacitor, a jumper, and the temperature probe input to the fan coil unit
-  * Vin goes to the 5V pin from the FCU PCB
-  * 5V goes to the Vcc bus
+  * Vin goes to the 5V pin and the VCC bus from the FCU PCB
+    
   * Ground goes to the ground bus
 
 Ground bus brings together: 
@@ -102,4 +102,5 @@ Ground bus brings together:
 VCC bus brings together: 
 * Vcc from the 485Max
 * Vcc from the DHT22
-* 5V from the Arduino
+* 5Vin from the Arduino
+* 5V from the FCU
