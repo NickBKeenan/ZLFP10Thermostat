@@ -5,6 +5,10 @@ This is code for overriding the thermostatic control on hydronic fan coil units 
 
 This is a branch from the original project, this has been modified to use a different Modbus library and a software serial port, which allows it to work on a wider variety of Arduino boards. 
 
+The instructions below are for building your own circuit. I since have made a circuit board that encapsulates everything you need, it has connectors to plug in an Arduino Nano Every and a connector for a DHT22 sensor. I've dubbed it the "FCU Tamer," instructions for using it are at: https://docs.google.com/document/d/1PdjXZw-ufqt7Nsb8ImJrRoUxyPIptV9VMHox43rMfUE/edit?usp=sharing
+
+So I now consider the instructions below obsolete. Contact me for details on how to get an FCU Tamer board. 
+
 In order to use this you need: 
 * An Arduino. So far the only boards I have found that it doesn't work on are ones that run at 3.3V like the Nano ESP32, the MAX485 transceiver requires 5V. I have tested it on Uno R1, R2 Wifi, R3 and R4.
 * A MAX485 transceiver module (such as https://www.amazon.com/gp/product/B088Q8TD4V/ref=ppx_yo_dt_b_search_asin_title?ie=UTF8&psc=1) 
