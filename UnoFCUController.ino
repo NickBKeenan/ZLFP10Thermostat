@@ -3,6 +3,9 @@
 
 
 #include "ZLFP10Thermostat.h"
+
+
+
 //#define DEBUGOUTPUTDEVICE_LCD
 #define DEBUGOUTPUTDEVICE_SERIAL
 
@@ -31,10 +34,13 @@ LCDStream lcdDebug;
 #define STATUSBASEPIN 8
 #define STATUSPINCOUNT 4 // pins are 8 through 11
 #define COIL_TEMP_PIN 12
+#define CLIENT_MODBUS_ID 15
+#define SERVER_MODBUS_ID 99
 
-
+SoftwareSerial SoftSerial(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
 ZLFP10Thermostat theThermostat(DHT_SENSOR_PIN);
+
 
 
 struct NullStream : public Stream{
@@ -50,7 +56,8 @@ NullStream DebugNull;
 void setup() {
   theThermostat.setTempPins(ROOM_TEMP_PIN, COIL_TEMP_PIN);
   DebugSetup();
-  theThermostat.setSerial(Serial1,SERIAL1_DE_PIN, SERIAL1_DE_PIN );
+  theThermostat.setClientSerial(Serial1,SERIAL1_DE_PIN, SERIAL1_DE_PIN , CLIENT_MODBUS_ID);
+  theThermostat.setServerSerial(SoftSerial,SW_SERIAL_DE, SW_SERIAL_DE, SERVER_MODBUS_ID );
   
   
   theThermostat.setup();
@@ -59,7 +66,15 @@ void setup() {
 
 void loop()
 {
+   /*while(SoftSerial.available())
+  {
+    int ch=SoftSerial.read();
+    Serial.print(ch, HEX);
+    Serial.print('-');
+  }*/
+
   theThermostat.loop( );
+  
 }
   
   
@@ -72,7 +87,10 @@ void loop()
 
       while(!Serial && millis() < 5000)
         ;
-        Serial.println("starting");
+        Serial.print("starting ");
+        Serial.print(__FILE__);
+        Serial.print(" ");
+        Serial.println(__DATE__);
       if(Serial)
       {
         theThermostat.SetDebugOutput(&Serial);

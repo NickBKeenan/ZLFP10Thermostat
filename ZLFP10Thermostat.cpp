@@ -9,7 +9,7 @@
 #define STATUSBASEPIN 8
 
 
-ModbusMaster node;
+
 
 ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):DehumidifyingMultiStageThermostat(pDHTSensorPin) 
 {
@@ -21,15 +21,27 @@ void ZLFP10Thermostat::setTempPins(uint8_t pRoomTempPin, uint8_t pCoilTempPin)
   FCUController.setRoomTempPin(pRoomTempPin);
   FCUController.setCoilTempPin(pCoilTempPin);
 }
-void ZLFP10Thermostat::setSerial(HardwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin)
+void ZLFP10Thermostat::setClientSerial(HardwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin,  uint8_t ModbusID)
 {
-  FCUController.setHardwareSerial(pswSerial,  pRS485DEPin,  pRS485REPin);
+  FCUController.setClientHardwareSerial(pswSerial,  pRS485DEPin,  pRS485REPin, ModbusID);
+}
+ZLFP10ModbusServer TheServer;
+
+void ZLFP10Thermostat::setServerSerial(SoftwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin, uint8_t ModbusID)
+{
+  FCUController.setServerSoftwareSerial(pswSerial,  pRS485DEPin,  pRS485REPin,  ModbusID, &TheServer);
+  TheServer.SetupClient(FCUController.GetClient());
+  TheServer.SetParentThermostat(this);
 }
 
 void ZLFP10Thermostat::setup() 
 {
    
-    DebugStream->println("starting");
+    
+        DebugStream->print("starting ");
+        DebugStream->print(__FILE__);
+        DebugStream->print(" ");
+        DebugStream->println(__DATE__);
 
 
     
@@ -43,6 +55,7 @@ void ZLFP10Thermostat::setup()
 
 
 void ZLFP10Thermostat::DisplayStatus() {
+  
     unsigned long hour;
     unsigned long minutes;
     unsigned long seconds;
@@ -218,7 +231,8 @@ void ZLFP10Thermostat::loop()
         }
         DisplayStatus();
         
-    
+    // check the server side    
+    FCUController.ServiceAnyRequests();
    
 
 
@@ -280,3 +294,4 @@ void ZLFP10Thermostat::SetDebugOutput(Stream * pDebug)
   DebugStream=pDebug;
   FCUController.SetDebugOutput(pDebug);
 };
+
