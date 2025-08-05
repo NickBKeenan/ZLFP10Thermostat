@@ -3,8 +3,8 @@
 
 #include "ZLFP10Thermostat.h"
 #include <ZLFP10Controller.h>
-#include <LEDStatusStrip.h>
-#include <DewPoint.h>
+#include "LEDStatusStrip.h"
+#include "DewPoint.h"
 #define STATUSPINCOUNT 4
 #define STATUSBASEPIN 8
 
@@ -16,15 +16,18 @@ ZLFP10Thermostat::ZLFP10Thermostat(uint8_t pDHTSensorPin):DehumidifyingMultiStag
         Mode=MODE_OFF;
         theLEDStatusStrip.SetPins(STATUSBASEPIN, STATUSPINCOUNT);
 }
+
 void ZLFP10Thermostat::setTempPins(uint8_t pRoomTempPin, uint8_t pCoilTempPin)
 {
   FCUController.setRoomTempPin(pRoomTempPin);
   FCUController.setCoilTempPin(pCoilTempPin);
 }
+
 void ZLFP10Thermostat::setClientSerial(HardwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin,  uint8_t ModbusID)
 {
   FCUController.setClientHardwareSerial(pswSerial,  pRS485DEPin,  pRS485REPin, ModbusID);
 }
+
 ZLFP10ModbusServer TheServer;
 
 void ZLFP10Thermostat::setServerSerial(SoftwareSerial &pswSerial, uint8_t pRS485DEPin,uint8_t pRS485REPin, uint8_t ModbusID)
@@ -36,20 +39,16 @@ void ZLFP10Thermostat::setServerSerial(SoftwareSerial &pswSerial, uint8_t pRS485
 
 void ZLFP10Thermostat::setup() 
 {
-   
-    
-        DebugStream->print("starting ");
-        DebugStream->print(__FILE__);
-        DebugStream->print(" ");
-        DebugStream->println(__DATE__);
+    DEBUG_INFO(DEBUG_MODULE_THERMOSTAT, "Starting thermostat setup");
+    DEBUG_INFO_STR(DEBUG_MODULE_THERMOSTAT, "File", __FILE__);
+    DEBUG_INFO_STR(DEBUG_MODULE_THERMOSTAT, "Build date", __DATE__);
 
-
-    
+    LEDStatusStrip theLEDStatusStrip;
   
     setThermostatInterval(0.2);
     setDefaultStage(2);
     MultiStageThermostat::setup();
-    DebugStream->println("done starting");
+    DEBUG_INFO(DEBUG_MODULE_THERMOSTAT, "Thermostat setup complete");
     EnableDehumidify();
 }
 
@@ -126,7 +125,7 @@ void ZLFP10Thermostat::DisplayStatus() {
     
     DebugStream->print("   " );
     DebugStream->print('\r');
-}
+  }
 int Delays[]=
 {
   ADJUSTMENT_INTERVAL+60, 
@@ -138,7 +137,9 @@ int Delays[]=
 
 void ZLFP10Thermostat::RestartSession()
 {
-     nextcheck = 0;
+    DEBUG_INFO(DEBUG_MODULE_THERMOSTAT, "Restarting session - applying new settings");
+    
+    nextcheck = 0;
     settings.CoolingSetpoint=FCUSetTemp;
     settings.HeatingSetpoint=FCUSetTemp;
     settings.mode=Mode;
@@ -199,14 +200,10 @@ void ZLFP10Thermostat::loop()
             // if on/off, mode or setpoint has changed since last iteration, reset everything
             if(oldOnOff!=Onoff || oldMode!=Mode ||  oldSetTemp!= FCUSetTemp)
             {
-              DebugStream->println("Restarting session");
-              DebugStream->print("Onoff=");
-              DebugStream->print(Onoff);
-              DebugStream->print(" Mode=");
-              DebugStream->print(Mode);
-              DebugStream->print(" FCUSetTemp=");
-              DebugStream->print(FCUSetTemp);
-              DebugStream->println();
+              DEBUG_INFO(DEBUG_MODULE_THERMOSTAT, "Restarting session");
+              DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "On/Off", Onoff);
+              DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Mode", Mode);
+              DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "FCU Set Temp", FCUSetTemp);
               RestartSession();
             }
 
@@ -294,4 +291,17 @@ void ZLFP10Thermostat::SetDebugOutput(Stream * pDebug)
   DebugStream=pDebug;
   FCUController.SetDebugOutput(pDebug);
 };
+
+// Getter methods for FCU settings
+word ZLFP10Thermostat::getFCUOnOffStatus() {
+    return FCUController.FCUSettings.Onoff;
+}
+
+word ZLFP10Thermostat::getFCUModeStatus() {
+    return FCUController.FCUSettings.Mode;
+}
+
+word ZLFP10Thermostat::getFCUFanSpeedStatus() {
+    return FCUController.FCUSettings.FanModeSetting;
+}
 

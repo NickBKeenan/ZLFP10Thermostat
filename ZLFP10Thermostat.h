@@ -1,10 +1,8 @@
 #include <DehumidifyingMultiStageThermostat.h>
-
-
+#include "DebugLibrary.h"
 
 #include <ZLFP10Controller.h>
 #include "ZLFP10ModbusServer.h"
-
 
 
 class ZLFP10Thermostat: public DehumidifyingMultiStageThermostat
@@ -39,6 +37,11 @@ public:
     
     void SetDebugOutput(Stream * pDebug); // set the device for debug output
     void DoServerAction(); // called when the server needs something from the FCU
+    
+    // Getter methods for FCU settings
+    word getFCUOnOffStatus();
+    word getFCUModeStatus();
+    word getFCUFanSpeedStatus();
 
 };
 

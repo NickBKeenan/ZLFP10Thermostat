@@ -35,19 +35,19 @@ void ZLFP10ModbusServer::readHoldingRegisters()
   Serial.println();
   Serial.print("Reading Holding Registers (03). Register: ");
   Serial.print(Register, HEX);
-  Serial.print("Count: ");
+  Serial.print(" Count: ");
   Serial.print(Count);
   Serial.println();
-
+  
 
   pClient->readHoldingRegisters(Register,Count);
 
   int x;
   for(x=0; x< Count; x++)
   {
-  
+    
     TransmitBufferPutAt(x, pClient->ResponseBufferGetAt(x));
-  }
+  }  
   SendFrame(MODBUS03_ReadHoldingRegisters, ReceivedAddress(), Count, Register,false);
 }
 
@@ -67,10 +67,17 @@ void  ZLFP10ModbusServer::readInputRegisters()
         Serial.println();
         Serial.print("Reading Temperature: ");
         Serial.print(temp);
+        Serial.print(" (raw value: ");
+        Serial.print(temp);
+        Serial.print(", temperature: ");
+        Serial.print(temp/10.0, 1);
+        Serial.print("°C)");
         Serial.println();
+        Serial.print("DEBUG: Register 0x9999/39321 returning value: ");
+        Serial.println(temp);
       
       
-        SendFrame(MODBUS04_ReadInputRegisters, ReceivedAddress(), Count, Register,false);
+      SendFrame(MODBUS04_ReadInputRegisters, ReceivedAddress(), Count, Register,false);
         return;
       }
       Serial.println();
@@ -96,27 +103,33 @@ void  ZLFP10ModbusServer::readInputRegisters()
 
 void  ZLFP10ModbusServer::writeMultipleRegisters()
 {
-      word Register;
-      word Count;
-      Register=ResponseBufferGetAt(0);
-      Count= ResponseBufferGetAt(1);
-      Serial.println();
-      Serial.print("Writing multiple registers ");
-      Serial.print(Register);
-      Serial.print(" ");
-      Serial.print(Count);
-      Serial.println();
+  // Parse according to observed buffer layout
+  uint16_t Register = ResponseBufferGetAt(0);
+  uint16_t Count = ResponseBufferGetAt(1);
 
-      int x;
-      for(x=0; x< Count; x++)
-      {
-        Serial.print(pClient->ResponseBufferGetAt(x+2), HEX);
-        Serial.print(".");
-        TransmitBufferPutAt(x, pClient->ResponseBufferGetAt(x+2));
-      }
-      pClient->writeMultipleRegisters(Register,Count);
-      SendFrame(MODBUS10_WriteMultipleRegisters, ReceivedAddress(), Count, Register,false);
-      Serial.println();
+  Serial.println();
+  Serial.print("Writing multiple registers. Register: 0x");
+  Serial.print(Register, HEX);
+  Serial.print(" Count: ");
+  Serial.print(Count);
+  Serial.println();
+  
+  // Data starts at index 2
+  for (int i = 0; i < Count; i++) {
+    uint16_t value = ResponseBufferGetAt(2 + i);
+    Serial.print(" Register ");
+    Serial.print(Register + i);
+    Serial.print(" Value: 0x");
+    Serial.println(value, HEX);
+
+    //need to put the values in pClient so they are included as part of the frame
+    pClient->TransmitBufferPutAt(i, value);
+  }
+
+  // Forward the command to the FCU
+  pClient->writeMultipleRegisters(Register, Count);
+  SendFrame(MODBUS10_WriteMultipleRegisters, ReceivedAddress(), Count, Register, false);
+  Serial.println();
 }
 
 void ZLFP10ModbusServer::IllegalFunction()
