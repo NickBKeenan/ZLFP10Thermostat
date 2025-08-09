@@ -42,6 +42,29 @@ public:
     word getFCUOnOffStatus();
     word getFCUModeStatus();
     word getFCUFanSpeedStatus();
+    
+    // Additional getter methods for new registers
+    int getTempFault();
+    int getCoilTempFault();
+    float getHumidity();
+    float getActualHumidity(); // For register 39322
+    
+    // Missing getter methods for FCU holding registers
+    word getCoolSetpoint();
+    word getHeatSetpoint();
+    
+    // Missing getter methods for FCU input registers
+    word getFCURoomTemp();
+    word getCoilTemp();
+    word getFanSetting();
+    word getFanRPM();
+    word getValveOpen();
+    word getFanFault();
+    
+    // Missing getter methods for thermostat state
+    word getOnoff();
+    word getMode();
+    word getFCUSetTemp();
 
 };
 

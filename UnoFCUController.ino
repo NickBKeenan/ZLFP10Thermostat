@@ -35,8 +35,8 @@ LCDStream lcdDebug;
 #define STATUSBASEPIN 8
 #define STATUSPINCOUNT 4 // pins are 8 through 11
 #define COIL_TEMP_PIN 12
-#define CLIENT_MODBUS_ID 16
-#define SERVER_MODBUS_ID 96
+#define CLIENT_MODBUS_ID 18
+#define SERVER_MODBUS_ID 98
 #define ENABLE_LEDS false
 
 SoftwareSerial SoftSerial(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);

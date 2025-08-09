@@ -54,78 +54,29 @@ void ZLFP10Thermostat::setup()
 
 
 void ZLFP10Thermostat::DisplayStatus() {
-  
-    unsigned long hour;
-    unsigned long minutes;
-    unsigned long seconds;
-    unsigned long now = millis();
-    seconds = now / 1000;
-    minutes = now / 60000;
-    seconds -= minutes * 60;
-
-    hour = minutes / 60;
-    minutes -= hour * 60;
-
-    DebugStream->print(hour);
-    DebugStream->print(":");
-    if (minutes < 10)
-        DebugStream->print('0');
-    DebugStream->print(minutes);
-    DebugStream->print(":");
-
-    if (seconds < 10)
-        DebugStream->print('0');
-    DebugStream->print(seconds);
-    // sensor properties
-    DebugStream->print(", Temp=");
-    DebugStream->print(getTemp(), 1);
+    // Use the debug framework for status display
+    DEBUG_INFO(DEBUG_MODULE_THERMOSTAT, "Status update");
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "On/Off", Onoff);
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Mode", Mode);
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Fan Mode Setting", FCUController.FCUSettings.FanModeSetting);
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_THERMOSTAT, "Temperature", getTemp());
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_THERMOSTAT, "Humidity", getHumidity());
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_THERMOSTAT, "Dew point", DewPoint(getTemp(), getHumidity()));
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Setpoint", FCUSetTemp);
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Stage", getLastStage());
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_THERMOSTAT, "Upper threshold", upperthreshold);
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_THERMOSTAT, "Lower threshold", lowerthreshold);
+    DEBUG_INFO_INT(DEBUG_MODULE_THERMOSTAT, "Next check", (nextAdjustmentTime > millis()) ? (nextAdjustmentTime-millis())/1000 : 0);
     
-    DebugStream->print(", Hum=");
-    DebugStream->print(getHumidity(), 0);
-        DebugStream->print(", DP=");
-    DebugStream->print(DewPoint(getTemp(),getHumidity()), 0);
-
-    // thermostat properties
-    DebugStream->print(", Setpt:");
-    DebugStream->print(FCUSetTemp );
-    DebugStream->print(", Stage=");
-    DebugStream->print(getLastStage());
-    DebugStream->print(", U=");
-    DebugStream->print(upperthreshold,1);
-    DebugStream->print(" L=");
-    DebugStream->print(lowerthreshold,1);
-    DebugStream->print(" Next check=");
-    if (nextAdjustmentTime > millis())
-    {
-        Serial.print((nextAdjustmentTime-millis())/1000);
-    }
-    else
-        Serial.print("0");
-
-
-    //FCU properties
-    DebugStream->print(", Temp Pin=");
-    DebugStream->print(FCUController.lastTempPin);
-    DebugStream->print(", Reported Room Temp=");
-    DebugStream->print(FCUController.FCUSettings.RoomTemp );
-    
-    
-    DebugStream->print(",  RPM=");
-    DebugStream->print(FCUController.FCUSettings.FanRPM);
-
-    DebugStream->print(", Fan setting=");
-    DebugStream->print(FCUController.FCUSettings.FanSetting);
-    DebugStream->print(", Coil Temperature=");
-    DebugStream->print(FCUController.FCUSettings.coilTemp);
-    DebugStream->print(", Valve=");
-    DebugStream->print(FCUController.FCUSettings.valveOpen);
-    DebugStream->print(", Error=");
-    DebugStream->print(FCUController.FCUSettings.FanFault);
-    
-    
-    DebugStream->print("   " );
-    DebugStream->print('\r');
-  }
+    // FCU properties
+    DEBUG_INFO_INT(DEBUG_MODULE_FCU, "Temp pin", FCUController.lastTempPin);
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_FCU, "Reported room temp", FCUController.FCUSettings.RoomTemp);
+    DEBUG_INFO_INT(DEBUG_MODULE_FCU, "Fan RPM", FCUController.FCUSettings.FanRPM);
+    DEBUG_INFO_INT(DEBUG_MODULE_FCU, "Fan setting", FCUController.FCUSettings.FanSetting);
+    DEBUG_INFO_FLOAT(DEBUG_MODULE_FCU, "Coil temperature", FCUController.FCUSettings.coilTemp);
+    DEBUG_INFO_INT(DEBUG_MODULE_FCU, "Valve open", FCUController.FCUSettings.valveOpen);
+    DEBUG_INFO_INT(DEBUG_MODULE_FCU, "Fan fault", FCUController.FCUSettings.FanFault);
+}
 int Delays[]=
 {
   ADJUSTMENT_INTERVAL+60, 
@@ -303,5 +254,69 @@ word ZLFP10Thermostat::getFCUModeStatus() {
 
 word ZLFP10Thermostat::getFCUFanSpeedStatus() {
     return FCUController.FCUSettings.FanModeSetting;
+}
+
+// Additional getter methods for new registers
+int ZLFP10Thermostat::getTempFault() {
+    return FCUController.FCUSettings.TempFault;
+}
+
+int ZLFP10Thermostat::getCoilTempFault() {
+    return FCUController.FCUSettings.CoilTempFault;
+}
+
+float ZLFP10Thermostat::getHumidity() {
+    return lastHum; // Use inherited humidity from Arduino sensor
+}
+
+float ZLFP10Thermostat::getActualHumidity() {
+    return lastHum * 10; // Return humidity * 10 for register 39322 (similar to getActualRoomTemp)
+}
+
+// Missing getter methods for FCU holding registers
+word ZLFP10Thermostat::getCoolSetpoint() {
+    return FCUController.FCUSettings.CoolSetpoint;
+}
+
+word ZLFP10Thermostat::getHeatSetpoint() {
+    return FCUController.FCUSettings.HeatSetpoint;
+}
+
+// Missing getter methods for FCU input registers
+word ZLFP10Thermostat::getFCURoomTemp() {
+    return FCUController.FCUSettings.RoomTemp;
+}
+
+word ZLFP10Thermostat::getCoilTemp() {
+    return FCUController.FCUSettings.coilTemp;
+}
+
+word ZLFP10Thermostat::getFanSetting() {
+    return FCUController.FCUSettings.FanSetting;
+}
+
+word ZLFP10Thermostat::getFanRPM() {
+    return FCUController.FCUSettings.FanRPM;
+}
+
+word ZLFP10Thermostat::getValveOpen() {
+    return FCUController.FCUSettings.valveOpen;
+}
+
+word ZLFP10Thermostat::getFanFault() {
+    return FCUController.FCUSettings.FanFault;
+}
+
+// Missing getter methods for thermostat state
+word ZLFP10Thermostat::getOnoff() {
+    return Onoff;
+}
+
+word ZLFP10Thermostat::getMode() {
+    return Mode;
+}
+
+word ZLFP10Thermostat::getFCUSetTemp() {
+    return FCUSetTemp;
 }
 
