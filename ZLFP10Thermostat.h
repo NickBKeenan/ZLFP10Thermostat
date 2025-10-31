@@ -1,10 +1,8 @@
 #include <DehumidifyingMultiStageThermostat.h>
-
-
+#include "DebugLibrary.h"
 
 #include <ZLFP10Controller.h>
 #include "ZLFP10ModbusServer.h"
-
 
 
 class ZLFP10Thermostat: public DehumidifyingMultiStageThermostat
@@ -39,6 +37,34 @@ public:
     
     void SetDebugOutput(Stream * pDebug); // set the device for debug output
     void DoServerAction(); // called when the server needs something from the FCU
+    
+    // Getter methods for FCU settings
+    word getFCUOnOffStatus();
+    word getFCUModeStatus();
+    word getFCUFanSpeedStatus();
+    
+    // Additional getter methods for new registers
+    int getTempFault();
+    int getCoilTempFault();
+    float getHumidity();
+    float getActualHumidity(); // For register 39322
+    
+    // Missing getter methods for FCU holding registers
+    word getCoolSetpoint();
+    word getHeatSetpoint();
+    
+    // Missing getter methods for FCU input registers
+    word getFCURoomTemp();
+    word getCoilTemp();
+    word getFanSetting();
+    word getFanRPM();
+    word getValveOpen();
+    word getFanFault();
+    
+    // Missing getter methods for thermostat state
+    word getOnoff();
+    word getMode();
+    word getFCUSetTemp();
 
 };
 

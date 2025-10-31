@@ -2,9 +2,10 @@
 
 
 
+
 #include "ZLFP10Thermostat.h"
-
-
+#include "DebugFramework.h"
+#include "LEDStatusStrip.h"
 
 //#define DEBUGOUTPUTDEVICE_LCD
 #define DEBUGOUTPUTDEVICE_SERIAL
@@ -34,8 +35,9 @@ LCDStream lcdDebug;
 #define STATUSBASEPIN 8
 #define STATUSPINCOUNT 4 // pins are 8 through 11
 #define COIL_TEMP_PIN 12
-#define CLIENT_MODBUS_ID 15
-#define SERVER_MODBUS_ID 99
+#define CLIENT_MODBUS_ID 18
+#define SERVER_MODBUS_ID 98
+#define ENABLE_LEDS false
 
 SoftwareSerial SoftSerial(SW_SERIAL_RX_PIN, SW_SERIAL_TX_PIN);
 
@@ -53,12 +55,18 @@ struct NullStream : public Stream{
 };
 
 NullStream DebugNull;
+
 void setup() {
+  LEDStatusStrip::setLEDsEnabled(ENABLE_LEDS);
+
   theThermostat.setTempPins(ROOM_TEMP_PIN, COIL_TEMP_PIN);
   DebugSetup();
+  
+  // Initialize SoftwareSerial for Modbus server
+  SoftSerial.begin(9600);  // Back to 9600 baud
+
   theThermostat.setClientSerial(Serial1,SERIAL1_DE_PIN, SERIAL1_DE_PIN , CLIENT_MODBUS_ID);
   theThermostat.setServerSerial(SoftSerial,SW_SERIAL_DE, SW_SERIAL_DE, SERVER_MODBUS_ID );
-  
   
   theThermostat.setup();
   
@@ -66,12 +74,7 @@ void setup() {
 
 void loop()
 {
-   /*while(SoftSerial.available())
-  {
-    int ch=SoftSerial.read();
-    Serial.print(ch, HEX);
-    Serial.print('-');
-  }*/
+
 
   theThermostat.loop( );
   
@@ -81,38 +84,46 @@ void loop()
 
   void DebugSetup()
 {
-  theThermostat.SetDebugOutput(&DebugNull);
-    #ifdef DEBUGOUTPUTDEVICE_SERIAL
-      Serial.begin(9600);
-
-      while(!Serial && millis() < 5000)
-        ;
-        Serial.print("starting ");
-        Serial.print(__FILE__);
-        Serial.print(" ");
-        Serial.println(__DATE__);
-      if(Serial)
-      {
-        theThermostat.SetDebugOutput(&Serial);
-      }
-    #endif
+  // Initialize debug framework
+  Debug.setDebugLevel(DEBUG_LEVEL_INFO);
+  Debug.enableModule(DEBUG_MODULE_MAIN);
+  Debug.enableModule(DEBUG_MODULE_THERMOSTAT);
+  Debug.enableModule(DEBUG_MODULE_FCU);
+  Debug.enableModule(DEBUG_MODULE_MODBUS);
+  Debug.enableModule(DEBUG_MODULE_SENSOR);
+  Debug.enableModule(DEBUG_MODULE_LED);
+  
+  // Set up debug output
+  #ifdef DEBUGOUTPUTDEVICE_SERIAL
+    Serial.begin(9600);
+    while(!Serial && millis() < 5000)
+      ;
+    
+    if(Serial) {
+      Debug.setDebugStream(&Serial);
+      Debug.info(DEBUG_MODULE_MAIN, "Debug framework initialized");
+      Debug.info(DEBUG_MODULE_MAIN, "Starting");
+      Debug.info(DEBUG_MODULE_MAIN, "Build date");
+      theThermostat.SetDebugOutput(&Serial);
+    }
+  #endif
  
-   #ifdef DEBUGOUTPUTDEVICE_LCD
-       lcd.init();  // initialize the lcd
-       lcd.clear();
-       // Print a message to the LCD.
-        lcd.backlight();
-        lcd.setCursor(0, 0);
-        lcd.print("--------------------");
-        lcd.setCursor(6, 1);
-        lcd.print("GEEEKPI");
-        lcd.setCursor(1, 2);
-        lcd.print("Arduino IIC Screen");
-        lcd.setCursor(0, 3);
-        lcd.print("--------------------");
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        theThermostat.SetDebugOutput(&lcdDebug);
-   #endif
-   
+  #ifdef DEBUGOUTPUTDEVICE_LCD
+    lcd.init();  // initialize the lcd
+    lcd.clear();
+    // Print a message to the LCD.
+    lcd.backlight();
+    lcd.setCursor(0, 0);
+    lcd.print("--------------------");
+    lcd.setCursor(6, 1);
+    lcd.print("GEEEKPI");
+    lcd.setCursor(1, 2);
+    lcd.print("Arduino IIC Screen");
+    lcd.setCursor(0, 3);
+    lcd.print("--------------------");
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    Debug.setDebugStream(&lcdDebug);
+    theThermostat.SetDebugOutput(&lcdDebug);
+  #endif
 }
